@@ -1,4 +1,8 @@
 import os
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis le fichier .env
+load_dotenv()
 
 # Clés API (doivent être définies dans .env ou en variable d'environnement)
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -13,3 +17,6 @@ if not WEATHER_API_KEY:
 # Chemin de la base de données
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_PATH = os.path.join(BASE_DIR, "..", "data", "Victor_locations.db")
+
+#GPT Version
+GPT_VER = "gpt-3.5-turbo"

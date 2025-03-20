@@ -1,27 +1,68 @@
 import openai
 import os
-
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-
-if not OPENAI_API_KEY:
-    raise ValueError("Missing OpenAI API key. Set the environment variable OPENAI_API_KEY.")
+import json
+from config import OPENAI_API_KEY, GPT_VER
 
 client = openai.OpenAI(api_key=OPENAI_API_KEY)
 
 def analyze_user_request(user_request):
-    """ Analyze user request and determine whether it's for an itinerary or general travel info. """
-    prompt = f"""
-    Analyze the following user request and determine if it is an itinerary request or a general travel question:
-    "{user_request}"
-
-    Return a JSON response with:
-    - intent: "itinerary" if the user wants an itinerary, "general" if it's a travel-related question.
+    """
+    Use GPT to extract structured data from a free-text travel request.
+    Returns a dict with:
+    - intent: "itinerary" or "general"
     - language: "fr", "en", etc.
+    - day_offset: 0 = today, 1 = tomorrow, etc.
+    - cities: [
+        { "name": "Vevey", "duration": "morning", "poi_types": ["nature", "gastronomy"] },
+        ...
+      ]
+    """
+    prompt = f"""
+You are an assistant that extracts structured data from a user's travel request.
+
+Request:
+\"{user_request}\"
+
+Return a JSON object with:
+- intent: "itinerary" or "general"
+- language: detected language code (e.g., "fr", "en")
+- day_offset: 0 if the user means today, 1 for tomorrow, etc.
+- cities: a list of cities involved in the trip. For each:
+    - name: the name of the city
+    - duration: "morning", "afternoon", "full day"
+    - poi_types: list of categories like "culture", "nature", "gastronomy", "romantic", etc.
+
+Example output:
+{{
+  "intent": "itinerary",
+  "language": "fr",
+  "day_offset": 1,
+  "cities": [
+    {{
+      "name": "Vevey",
+      "duration": "morning",
+      "poi_types": ["romantic", "nature"]
+    }},
+    {{
+      "name": "Montreux",
+      "duration": "afternoon",
+      "poi_types": ["culture"]
+    }}
+  ]
+}}
+Only return valid JSON.
     """
 
     response = client.chat.completions.create(
-        model="gpt-4-turbo",
+        model=GPT_VER,
         messages=[{"role": "user", "content": prompt}]
     )
 
-    return response.choices[0].message.content
+    structured = response.choices[0].message.content.strip()
+
+    # Remove markdown formatting if GPT added ```json
+    if structured.startswith("```json"):
+        structured = structured[7:-3].strip()
+
+    return json.loads(structured)
+
